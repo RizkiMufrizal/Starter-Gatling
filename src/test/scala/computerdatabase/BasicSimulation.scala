@@ -7,21 +7,16 @@ import scala.concurrent.duration._
 class BasicSimulation extends Simulation {
 
   val httpConf = http
-    .baseURL("http://gutkalsel1project.id") // Here is the root for all relative URLs
+    .baseURL("http://192.168.88.12:8585") // Here is the root for all relative URLs
     .acceptHeader("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8") // Here are the common headers
     .doNotTrackHeader("1")
     .acceptLanguageHeader("en-US,en;q=0.5")
     .acceptEncodingHeader("gzip, deflate")
     .userAgentHeader("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:16.0) Gecko/20100101 Firefox/16.0")
 
-  val headers_10 = Map("Content-Type" -> "application/x-www-form-urlencoded") // Note the headers specific to a given request
-
   val scn = scenario("Scenario Name") // A scenario is a chain of requests and pauses
     .exec(http("request_1")
-    .get("/"))
-    .pause(7) // Note that Gatling has recorded real time pauses
-    .exec(http("request_2")
-    .get("/"))
+    .get("/v10/reflect"))
 
-  setUp(scn.inject(atOnceUsers(1000)).protocols(httpConf))
+  setUp(scn.inject(constantUsersPerSec(100) during (10 minutes)).protocols(httpConf))
 }
