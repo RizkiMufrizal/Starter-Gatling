@@ -1,22 +1,44 @@
 package computerdatabase
 
+import com.typesafe.config.ConfigFactory
 import io.gatling.core.Predef._
+import io.gatling.core.structure.ScenarioBuilder
 import io.gatling.http.Predef._
+import io.gatling.http.protocol.HttpProtocolBuilder
+
 import scala.concurrent.duration._
 
 class BasicSimulation extends Simulation {
 
-  val httpConf = http
-    .baseURL("http://192.168.88.12:8585") // Here is the root for all relative URLs
-    .acceptHeader("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8") // Here are the common headers
+  private val config = ConfigFactory.load
+  private val baseUrl = config.getString("baseUrl").split(",")
+  private val url = "/api/v1/hello"
+
+  val httpConf: HttpProtocolBuilder = http
+    .baseUrls(baseUrl.map(_.trim).toList)
+    .acceptHeader("application/json")
+    .contentTypeHeader("application/json")
     .doNotTrackHeader("1")
     .acceptLanguageHeader("en-US,en;q=0.5")
     .acceptEncodingHeader("gzip, deflate")
-    .userAgentHeader("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:16.0) Gecko/20100101 Firefox/16.0")
+    .userAgentHeader("Gatling")
 
-  val scn = scenario("Scenario Name") // A scenario is a chain of requests and pauses
-    .exec(http("request_1")
-    .get("/v10/reflect"))
+  val baseline: ScenarioBuilder = scenario("Baseline")
+    .exec { session =>
+      val requestBody: String = "{\"message\":\"hello\"}"
 
-  setUp(scn.inject(constantUsersPerSec(100) during (10 minutes)).protocols(httpConf))
+      val session2 = session
+        .set("service_request", requestBody)
+      session2
+    }
+    .exec(
+      http("Baseline")
+        .post(url)
+        .header("Content-Type", "application/json")
+        .body(StringBody("#{service_request}"))
+    )
+
+  setUp(
+    baseline.inject(constantConcurrentUsers(10).during(10.minutes))
+  ).protocols(httpConf)
 }
